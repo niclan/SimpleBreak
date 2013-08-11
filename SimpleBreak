@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# Script to trancode full bandwidth dumps that includes whatever and
+# produce a lower bandwidth version with just one audio track and one
+# set of subtitles - burned into the picture.  The result should be
+# suitable for bringing on travel and playing via WiFi on your TV (if
+# it supports the codec).
+
+# This script requires
+# - mediainfo - to see what's in the files
+# - HandBreakCLI - to compress it the right way
+# - dialog - to ask the user stuff
+
+get_language () {
+    # $1   = "line" number
+    # "$2" = lines (tag\ntext\ntag\ntext...)
+
+    case $2 in
+	'') echo none # Empty list -
+	    return;;
+    esac
+
+    # Look up the specified tag from the list and return the
+    # corresponding text.  Tag is assumed to be numerical.
+
+    # NOTE we look at the tag we don't actually count the numbers
+    # 
+    # The sed does this:
+    # For all lines matching the contents of $1:
+    # - Copy the next line into the linebuffer
+    # - Remove the embedded newline
+    # - Remove leading number and whitespace
+    # - Print the content of the linebuffer
+    # For all lines: delete eveything
+    # SO: Only the line following the matching line is printed.
+
+    line="$( echo "$2" | sed '/^'$1'$/{N;s/\n/ /;s/^[0-9]* //;p}; d' )"
+    echo $line
+}
+
+select_language () {
+    # $1: Dialog question/instuction
+    # $2: Multi-word string consisting of "tag" and "text" pairs as described
+    #     in the dialog docs. The "text" part can only be one word since
+    #     we're a shell script and are not using arrays.
+
+    case $2 in
+	'') return 1;;  # Empty list
+    esac
+
+    LINES=$( echo "$2" | wc -l )
+
+    case $LINES in
+        0)  # None
+            return 1;;
+
+	1)  echo "Odd number of languages: $2" >&2
+	    exit 1;;
+
+	2)  # Just one.  Find its number.  It should be 1, but I feel paranoid
+	    ID=$( echo "$2" | head -1 );;
+
+        *)  # Several, let the user choose
+	    ID=$( dialog --clear --title "$1" --menu "$1" 20 30 0 $2 2>&1 >/dev/tty )
+	    STATUS=$?
+	    case $STATUS in
+		255) echo "Dialog error ($1): $ID" >&2
+		     exit 255;;
+	    esac
+	    ;;
+    esac
+
+    return $ID
+}
+
+DOBATCH=1
+# DOBATCH=0
+
+movie="$1"
+
+# Extract list of audio languages
+AUDIO="$( mediainfo "$movie" |
+          sed '/^\(Audio$\|Audio #\)/,/^$/!d;
+               s/^Audio$/Audio #1/;
+               /^\(Language\|Audio #\)/!d;
+               s/^.*[:#][ ]*//; s/ //g;' )"
+
+case AUDIO in
+    '') echo No audio available.  No support for silent movies >&2;
+	exit 1;;
+esac
+
+# Extract list of subtitle languages
+SUBS="$( mediainfo "$movie" |
+         sed '/^\(Text$\|Text #\)/,/^$/!d;
+              s/^Text$/Text #1/;
+              /^\(Language\|Text #\)/!d;
+              s/^.*[:#][ ]*//; s/ //g;' )"
+
+# User selects what languages to use
+select_language "Select audio language" "$AUDIO"
+WAID=$?
+
+select_language "Select subtitle language" "$SUBS"
+WSID=$?
+
+# List of optimizations
+OPT="1
+film
+2
+animation
+"
+
+select_language "Select optimization" "$OPT"
+OPTID=$?
+
+clear
+
+# And what language does those numbers correspond to?
+WAUDIO=$(get_language $WAID "$AUDIO")
+WSUB=$(get_language $WSID "$SUBS")
+OPTN=$(get_language $OPTID "$OPT")
+
+BN="$(basename "$movie")"
+OUT="${BN%%.*}-$WAUDIO-$WSUB.mkv"
+LOG="${BN%%.*}-$WAUDIO-$WSUB.log"
+
+AUDIO="--audio $WAID"
+
+case $WSUB in
+    none) echo "No subtitles available"
+          SUBTITLE='';;
+    *)    SUBTITLE="--subtitle $WSID --subtitle-burn 1"
+esac
+
+CMD="$(cat <<EOF
+echo Generating $OUT from $BN
+echo Log in $LOG
+echo
+nice -9 \
+    HandBrakeCLI -v 0 -i "$movie" -o "$OUT" --markers --two-pass --turbo \
+    -e x264 --x264-tune $OPTN --quality 18 \
+    $AUDIO --aencoder lame --ab 256 \
+    $SUBTITLE 2> "$LOG"  # --chapters 2
+EOF
+)"
+
+case $DOBATCH in
+    0) eval "$CMD";;
+    1) echo "$CMD" | batch
+       echo Job is queued. Monitor with "at -l" and check mail
+esac
