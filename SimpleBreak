@@ -10,6 +10,7 @@
 # - mediainfo - to see what's in the files
 # - HandBreakCLI - to compress it the right way
 # - dialog - to ask the user stuff
+# - batch (from the "at" package) to batch process movie compression
 
 get_language () {
     # $1   = "line" number
@@ -61,11 +62,16 @@ select_language () {
 	    ID=$( echo "$2" | head -1 );;
 
         *)  # Several, let the user choose
-	    ID=$( dialog --clear --title "$1" --menu "$1" 20 30 0 $2 2>&1 >/dev/tty )
+	    ID=$( dialog --clear --title "$movie" --menu "$1" 20 30 14 $2 2>&1 >/dev/tty )
 	    STATUS=$?
 	    case $STATUS in
 		255) echo "Dialog error ($1): $ID" >&2
 		     exit 255;;
+	    esac
+
+	    case $ID in
+		'') echo "Canceled" >&2
+		    exit 255;;
 	    esac
 	    ;;
     esac
@@ -73,80 +79,177 @@ select_language () {
     return $ID
 }
 
-DOBATCH=1
-# DOBATCH=0
 
-movie="$1"
+get_audio () {
+    # Select audio language
 
-# Extract list of audio languages
-AUDIO="$( mediainfo "$movie" |
-          sed '/^\(Audio$\|Audio #\)/,/^$/!d;
-               s/^Audio$/Audio #1/;
-               /^\(Language\|Audio #\)/!d;
-               s/^.*[:#][ ]*//; s/ //g;' )"
+    # Extract list of audio languages
+    AUDIO="$( mediainfo "$movie" |
+              sed '/^\(Audio$\|Audio #\)/,/^$/!d;
+                   s/^Audio$/Audio #1/;
+                   /^\(Language\|Audio #\)/!d;
+                   s/^.*[:#][ ]*//; s/ //g;' )"
 
-case AUDIO in
-    '') echo No audio available.  No support for silent movies >&2;
-	exit 1;;
-esac
+    case AUDIO in
+	'') echo No audio available.  No support for silent movies >&2;
+	    exit 1;;
+    esac
 
-# Extract list of subtitle languages
-SUBS="$( mediainfo "$movie" |
+    # User selects what languages to use
+    select_language "Select audio language" "$AUDIO"
+    WAID=$?
+
+    # And what language does those numbers correspond to?
+    WAUDIO=$(get_language $WAID "$AUDIO")
+
+    AUDIO="--audio $WAID"
+}
+
+
+get_subtitle () {
+    # Select subtitle
+
+    # Extract list of subtitle languages
+    SUBS="0
+None
+$( mediainfo "$movie" |
          sed '/^\(Text$\|Text #\)/,/^$/!d;
               s/^Text$/Text #1/;
               /^\(Language\|Text #\)/!d;
               s/^.*[:#][ ]*//; s/ //g;' )"
 
-# User selects what languages to use
-select_language "Select audio language" "$AUDIO"
-WAID=$?
+    select_language "Select subtitle language" "$SUBS"
+    WSID=$?
 
-select_language "Select subtitle language" "$SUBS"
-WSID=$?
+    case $WSID in
+	0) WSUB=none;;
+	*) WSUB=$(get_language $WSID "$SUBS");;
+    esac
 
-# List of optimizations
+    case $WSUB in
+	none) echo "No subtitles available"
+              SUBTITLE='';;
+	*)    SUBTITLE="--subtitle $WSID --subtitle-burn 1"
+    esac
+}
+
+
+get_optimization () {
+    Foo
+    # List of optimizations
 OPT="1
 film
 2
 animation
 "
 
-select_language "Select optimization" "$OPT"
-OPTID=$?
+    select_language "Select optimization" "$OPT"
+    OPTID=$?
+}
 
-clear
 
-# And what language does those numbers correspond to?
-WAUDIO=$(get_language $WAID "$AUDIO")
-WSUB=$(get_language $WSID "$SUBS")
-OPTN=$(get_language $OPTID "$OPT")
+get_scaling () {
+    WIDTH="$( mediainfo "$movie" |
+              sed '/^\(Video$\|Video #\)/,/^$/!d;
+                   s/^Video$/Video #1/;
+                   /^Width/!d;
+                   s/^.*[:#][ ]*//; s/ //g;
+                   s/pixels$//;' )"
 
-BN="$(basename "$movie")"
-OUT="${BN%%.*}-$WAUDIO-$WSUB.mkv"
-LOG="${BN%%.*}-$WAUDIO-$WSUB.log"
+    echo W: $WIDTH
 
-AUDIO="--audio $WAID"
+    LOWER="1
+No"
 
-case $WSUB in
-    none) echo "No subtitles available"
-          SUBTITLE='';;
-    *)    SUBTITLE="--subtitle $WSID --subtitle-burn 1"
-esac
+    case $WIDTH in
+	 720) return;;        # SD, no downscaling
+	1280) RES="720p HD"   # 1280x720 Broadcast HD
+	      LOWER="$LOWER
+2
+Standard"
+	      ;;
+	1920) RES="1920p full HD"  # 1920x1080 Full HD
+              LOWER="$LOWER
+2
+720p
+3
+Standard"
+	      ;;
+	*)    echo "Unrecognized vertical resolution $WIDTH"
+              exit 1;;
+    esac
 
-CMD="$(cat <<EOF
+    select_language "Video is $RES. Do you want to downscale?" "$LOWER";
+    ANSWER=$?
+
+    NEWRES=$(get_language $ANSWER "$LOWER")
+
+    echo $ANSWER $NEWRES
+
+    SCALING=""
+
+    case $ANSWER:$NEWRES in
+	1) return;;
+	*:Standard) SCALING="--display-width=720 --keep-display-aspect";;
+	*:720p)     SCALING="--display-width=1280 --keep-display-aspect";;
+	*)          echo What?
+	            exit 1;;
+    esac
+}
+
+
+issue_command () {
+    OPTN=$(get_language $OPTID "$OPT")
+
+    BN="$(basename "$movie")"
+    OUT="${BN%%.*}-$WAUDIO-$WSUB.mkv"
+    LOG="${BN%%.*}-$WAUDIO-$WSUB.log"
+
+    # Use $() and cat here to help keep the quoting sane
+    CMD="$(cat <<EOF
 echo Generating $OUT from $BN
 echo Log in $LOG
 echo
 nice -9 \
-    HandBrakeCLI -v 0 -i "$movie" -o "$OUT" --markers --two-pass --turbo \
+    HandBrakeCLI --decomb -v 0 -i "$movie" -o "$OUT" --markers \
+    $SCALING --two-pass --turbo \
     -e x264 --x264-tune $OPTN --quality 18 \
-    $AUDIO --aencoder lame --ab 256 \
-    $SUBTITLE 2> "$LOG"  # --chapters 2
+    $AUDIO --aencoder lame \
+    $SUBTITLE 2> "$LOG"
 EOF
 )"
 
-case $DOBATCH in
-    0) eval "$CMD";;
-    1) echo "$CMD" | batch
-       echo Job is queued. Monitor with "at -l" and check mail
+    # To check result after a change: --chapters 1
+
+    # --quality 18 was arrived at by looking at different results
+    # Lame implies mixdown to stereo
+    # Used to have --ab 192
+
+    case $DEBUG:$BATCH in
+	1:*) echo "$CMD";;
+	0:0) eval "$CMD";;
+	0:1) echo "$CMD" | batch
+             echo Job is queued. Monitor with "at -l" and check mail
+	     ;;
+    esac
+}
+
+BATCH=${SBBATCH:=1}
+DEBUG=${SBDEBUG:=0}
+
+case $DEBUG in
+    1) set -x
 esac
+
+movie="$1"
+
+get_scaling
+get_audio
+get_subtitle
+
+get_optimization
+
+clear
+
+issue_command
+

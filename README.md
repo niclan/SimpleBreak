@@ -19,7 +19,8 @@ I have settled on this work flow to rip DVDs:
     and the works.
 
     These matroska files are large and does not play easily on the
-    family TV either.  So they need to be smaller.
+    family TV (or handheld devices) either.  So they need to be
+    smaller.
 
  2. HandBrake offers transcoding with a interface that is possible to
     understand.  There is a command line version too.  But there are
@@ -29,14 +30,23 @@ I have settled on this work flow to rip DVDs:
     regarding video and audio quality and queues the transcoding job
     using the Unix/Linux batch system.  That way you can queue up many
     transcodings in one sitting and have the computer churn away at
-    all hours no matter if you have to go to school, work, or put the
-    kids to bed.  The batch job sends a email when it ends (if you've
+    all hours. The batch job sends a email when it ends (if you've
     set up email correctly).  And then the next job starts running at
     once.
 
-    The resulting files are in the order of 1-1.7GB for a feature film
-    and are easily played on the family TV over DLNA, on my phone, on
-    a pad or whatever (try MX Player on Android) and does not take
-    quite forever to copy around.
+    The files made from DVDs are in the order of 1-1.7GB for a feature
+    film and are easily played on the family TV over DLNA, on my
+    phone, on a pad or whatever (try MX Player on Android) and does
+    not take quite forever to copy around.
 
 This is fast and easy enough that I can be bothered.
+
+The program has no options, but you can set two variables to controll
+it:
+
+  export SBBATCH=0 
+     Run HandBrakeCLI in the foreground instead of as batch
+
+  export SBDEBUG=1
+     Do not actually run any HandBrakeCLI command, only show it, and
+     turn on tracing in the shell.
