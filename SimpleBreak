@@ -190,8 +190,8 @@ Standard"
 
     case $ANSWER:$NEWRES in
 	1) return;;
-	*:Standard) SCALING="--display-width=720 --keep-display-aspect";;
-	*:720p)     SCALING="--display-width=1280 --keep-display-aspect";;
+	*:Standard) SCALING="--maxWidth=720 --loose-anamorphic --keep-display-aspect";;
+	*:720p)     SCALING="--maxWidth=1280 --loose-anamorphic --keep-display-aspect";;
 	*)          echo What?
 	            exit 1;;
     esac
@@ -213,8 +213,8 @@ echo
 nice -9 \
     HandBrakeCLI --decomb -v 0 -i "$movie" -o "$OUT" --markers \
     $SCALING --two-pass --turbo \
-    -e x264 --x264-tune $OPTN --quality 18 \
-    $AUDIO --aencoder lame \
+    -e x264 --x264-tune $OPTN --quality 20 \
+    $AUDIO --aencoder lame --ab 256 \
     $SUBTITLE 2> "$LOG"
 EOF
 )"
@@ -222,6 +222,7 @@ EOF
     # To check result after a change: --chapters 1
 
     # --quality 18 was arrived at by looking at different results
+    # --quality 20 is HandBrake GUI default quality setting
     # Lame implies mixdown to stereo
     # Used to have --ab 192
 
@@ -252,4 +253,3 @@ get_optimization
 clear
 
 issue_command
-

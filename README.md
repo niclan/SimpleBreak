@@ -27,11 +27,15 @@ I have settled on this work flow to rip DVDs:
     still too many options.  Enter SimpleBreak: It figures out which
     audio and subtitle languages are available in the ripped matroska,
     asks you which ones you want, adds some hard coded options
-    regarding video and audio quality and queues the transcoding job
-    using the Unix/Linux batch system.  That way you can queue up many
+    regarding video and audio quality. If the input is HD (1080 or
+    720) you are offered to reduce resolution to 720HD or SD (Standard
+    Defenition).
+
+    After the user interactions it queues the transcoding job using
+    the Unix/Linux batch system.  That way you can queue up many
     transcodings in one sitting and have the computer churn away at
-    all hours. The batch job sends a email when it ends (if you've
-    set up email correctly).  And then the next job starts running at
+    all hours. The batch job sends a email when it ends (if you've set
+    up email correctly).  And then the next job starts running at
     once.
 
     The files made from DVDs are in the order of 1-1.7GB for a feature
@@ -41,8 +45,8 @@ I have settled on this work flow to rip DVDs:
 
 This is fast and easy enough that I can be bothered.
 
-The program has no options, but you can set two variables to controll
-it:
+The program has no options (only user interactions), but you can set
+two variables to controll it:
 
   export SBBATCH=0 
      Run HandBrakeCLI in the foreground instead of as batch
