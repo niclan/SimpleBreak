@@ -39,6 +39,7 @@ get_language () {
     echo $line
 }
 
+
 select_language () {
     # $1: Dialog question/instuction
     # $2: Multi-word string consisting of "tag" and "text" pairs as described
@@ -161,14 +162,16 @@ get_scaling () {
     LOWER="1
 No"
 
+    # Check is width/rows of video stream, but the names of
+    # resulutions is lines in the videostream
     case $WIDTH in
-	 720) return;;        # SD, no downscaling
-	1280) RES="720p HD"   # 1280x720 Broadcast HD
+	 720) return;;       # SD, no downscaling
+	1280) RES="720 HD"   # 1280x720 Broadcast HD
 	      LOWER="$LOWER
 2
 Standard"
 	      ;;
-	1920) RES="1920p full HD"  # 1920x1080 Full HD
+	1920) RES="1920 full HD"  # 1920x1080 Full HD
               LOWER="$LOWER
 2
 720p
@@ -184,14 +187,19 @@ Standard"
 
     NEWRES=$(get_language $ANSWER "$LOWER")
 
-    echo $ANSWER $NEWRES
-
     SCALING=""
+    SCNAME=""
 
     case $ANSWER:$NEWRES in
-	1) return;;
-	*:Standard) SCALING="--maxWidth=720 --loose-anamorphic --keep-display-aspect";;
-	*:720p)     SCALING="--maxWidth=1280 --loose-anamorphic --keep-display-aspect";;
+	1:*)  : ;;
+	*:Standard)
+	    SCALING="--maxWidth=720 --loose-anamorphic --keep-display-aspect"
+	    SCNAME="-sd"
+	    ;;
+	*:720p)
+	    SCALING="--maxWidth=1280 --loose-anamorphic --keep-display-aspect"
+	    SCNAME="-hd720"
+	    ;;
 	*)          echo What?
 	            exit 1;;
     esac
@@ -202,8 +210,8 @@ issue_command () {
     OPTN=$(get_language $OPTID "$OPT")
 
     BN="$(basename "$movie")"
-    OUT="${BN%%.*}-$WAUDIO-$WSUB.mkv"
-    LOG="${BN%%.*}-$WAUDIO-$WSUB.log"
+    OUT="${BN%%.*}-$WAUDIO-$WSUB$SCNAME.mkv"
+    LOG="${BN%%.*}-$WAUDIO-$WSUB$SCNAME.log"
 
     # Use $() and cat here to help keep the quoting sane
     CMD="$(cat <<EOF
