@@ -34,7 +34,6 @@ get_language () {
     # - Print the content of the linebuffer
     # For all lines: delete eveything
     # SO: Only the line following the matching line is printed.
-
     line="$( echo "$2" | sed '/^'$1'$/{N;s/\n/ /;s/^[0-9]* //;p}; d' )"
     echo $line
 }
@@ -63,6 +62,8 @@ select_language () {
 	    ID=$( echo "$2" | head -1 );;
 
         *)  # Several, let the user choose
+	    clear
+
 	    ID=$( dialog --clear --title "$movie" --menu "$1" 20 30 14 $2 2>&1 >/dev/tty )
 	    STATUS=$?
 	    case $STATUS in
@@ -83,13 +84,20 @@ select_language () {
 
 get_audio () {
     # Select audio language
+    # A audio track does not necessarily have a language code assigned
 
-    # Extract list of audio languages
-    AUDIO="$( mediainfo "$movie" |
-              sed '/^\(Audio$\|Audio #\)/,/^$/!d;
-                   s/^Audio$/Audio #1/;
-                   /^\(Language\|Audio #\)/!d;
-                   s/^.*[:#][ ]*//; s/ //g;' )"
+    AUDIO=$( mediainfo "$movie" |
+              sed '
+s/^Audio$/Audio #1/
+/^Audio #/,/^$/!d
+/^\(Language\|Audio #\|$\)/!d
+s/^Audio #/Audio /
+s/:/ /
+'  | awk '
+/Audio /   { N=$2; L="Unknown"; }
+/Language/ { L=$2 }
+/^$/ { print N"\n"L; }
+' )
 
     case AUDIO in
 	'') echo No audio available.  No support for silent movies >&2;
@@ -136,7 +144,6 @@ $( mediainfo "$movie" |
 
 
 get_optimization () {
-    Foo
     # List of optimizations
 OPT="1
 film
@@ -157,8 +164,6 @@ get_scaling () {
                    s/^.*[:#][ ]*//; s/ //g;
                    s/pixels$//;' )"
 
-    echo W: $WIDTH
-
     LOWER="1
 No"
 
@@ -171,11 +176,20 @@ No"
 2
 Standard"
 	      ;;
-	1920) RES="1920 full HD"  # 1920x1080 Full HD
+	1920|1912) RES="1920 full HD"  # 1920x1080 Full HD
               LOWER="$LOWER
 2
 720p
 3
+Standard"
+	      ;;
+	3840) RES="3840 UHD" # 3840 x 2160p UHD
+	      LOWER="$LOWER
+2
+1080p
+3
+720p
+4
 Standard"
 	      ;;
 	*)    echo "Unrecognized vertical resolution $WIDTH"
@@ -200,8 +214,12 @@ Standard"
 	    SCALING="--maxWidth=1280 --loose-anamorphic --keep-display-aspect"
 	    SCNAME="-hd720"
 	    ;;
-	*)          echo What?
-	            exit 1;;
+	*:1080p)
+	    SCALING="--maxWidth=1920 --loose-anamorphic --keep-display-aspect"
+	    SCNAME="-hd1080"
+	    ;;
+	*)  echo What?
+	    exit 1;;
     esac
 }
 
@@ -219,11 +237,11 @@ echo Generating $OUT from $BN
 echo Log in $LOG
 echo
 nice -9 \
-    HandBrakeCLI --decomb -v 0 -i "$movie" -o "$OUT" --markers \
+    HandBrakeCLI --decomb -v 0 -i '$movie' -o '$OUT' --markers \
     $SCALING --two-pass --turbo \
     -e x264 --x264-tune $OPTN --quality 20 \
     $AUDIO --aencoder lame --ab 256 \
-    $SUBTITLE 2> "$LOG"
+    $SUBTITLE 2> '$LOG'
 EOF
 )"
 
@@ -251,6 +269,11 @@ case $DEBUG in
 esac
 
 movie="$1"
+
+if [ ! -f "$movie" ] ; then
+    echo There does not seem to be any files by that name >&2
+    exit 1
+fi
 
 get_scaling
 get_audio
