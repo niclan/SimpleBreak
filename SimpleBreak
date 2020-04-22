@@ -243,8 +243,8 @@ issue_command () {
     OPTN=$(get_language $OPTID "$OPT")
 
     BN="$(basename "$movie")"
-    OUT="${BN%%.*}-$WAUDIO-$WSUB$SCNAME.mkv"
-    LOG="${BN%%.*}-$WAUDIO-$WSUB$SCNAME.log"
+    OUT="${BN%.*}-$WAUDIO-$WSUB$SCNAME.mkv"
+    LOG="${BN%.*}-$WAUDIO-$WSUB$SCNAME.log"
 
     # Use $() and cat here to help keep the quoting sane
     CMD="$(cat <<EOF
