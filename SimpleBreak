@@ -99,7 +99,7 @@ s/:/ /
 /^$/ { print N"\n"L; }
 ' )
 
-    case AUDIO in
+    case $AUDIO in
 	'') echo No audio available.  No support for silent movies >&2;
 	    exit 1;;
     esac
@@ -127,6 +127,16 @@ $( mediainfo "$movie" |
               /^\(Language\|Text #\)/!d;
               s/^.*[:#][ ]*//; s/ //g;' )"
 
+    lines=$(echo "$SUBS" | wc -l)
+
+    # Seen some cases of one subtitle choice with no language label -
+    # this will fix that.  If there are several with no language label
+    # we loose again.
+    case $lines in
+	3) SUBS="$SUBS
+Unknown";;
+    esac
+    
     select_language "Select subtitle language" "$SUBS"
     WSID=$?
 
@@ -168,22 +178,27 @@ get_scaling () {
 No"
 
     # Check is width/rows of video stream, but the names of
-    # resulutions is lines in the videostream
+    # resulutions is lines in the videostream.  Using the width as
+    # that has seemed more reliable than the height.
     case $WIDTH in
-	 720) return;;       # SD, no downscaling
-	1280) RES="720 HD"   # 1280x720 Broadcast HD
+	# SD, no downscaling
+	720) return;;       
+	# 1280x720 Broadcast HD - 960x720 = 4:3 in 720p
+	960|1280) RES="720 HD"
 	      LOWER="$LOWER
 2
 Standard"
 	      ;;
-	1920|1912) RES="1920 full HD"  # 1920x1080 Full HD
+	# 1920x1080 Full HD 1440x1080 = 4:3 in 1080p
+	1920|1912|1440|1916) RES="1920 full HD"
               LOWER="$LOWER
 2
 720p
 3
 Standard"
 	      ;;
-	3840) RES="3840 UHD" # 3840 x 2160p UHD
+	# 3840 x 2160p UHD
+	3840) RES="3840 UHD"
 	      LOWER="$LOWER
 2
 1080p
@@ -205,17 +220,17 @@ Standard"
     SCNAME=""
 
     case $ANSWER:$NEWRES in
-	1:*)  : ;;
+	1:*)  : ;; # No scaling
 	*:Standard)
 	    SCALING="--maxWidth=720 --loose-anamorphic --keep-display-aspect"
 	    SCNAME="-sd"
 	    ;;
 	*:720p)
-	    SCALING="--maxWidth=1280 --loose-anamorphic --keep-display-aspect"
+	    SCALING="--maxHeight=720 --loose-anamorphic --keep-display-aspect"
 	    SCNAME="-hd720"
 	    ;;
 	*:1080p)
-	    SCALING="--maxWidth=1920 --loose-anamorphic --keep-display-aspect"
+	    SCALING="--maxHeight=1080 --loose-anamorphic --keep-display-aspect"
 	    SCNAME="-hd1080"
 	    ;;
 	*)  echo What?
