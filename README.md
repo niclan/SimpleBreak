@@ -29,8 +29,8 @@ I have settled on this work flow:
     SimpleBreak figures out which languages (audio and subtitle) are
     available in the ripped matroska, asks you which ones you want,
     adds some hard coded options regarding video and audio quality.
-    If the input is HD (1080 or 720) you are offered to reduce
-    resolution to 720HD or SD (Standard Defenition).
+    If the input is HD (4K, 1080 or 720) you are offered to reduce
+    resolution.
 
     After the user interactions it queues the transcoding job using
     the Unix/Linux batch system.  That way you can queue up many

@@ -127,16 +127,17 @@ $( mediainfo "$movie" |
               /^\(Language\|Text #\)/!d;
               s/^.*[:#][ ]*//; s/ //g;' )"
 
-    lines=$(echo "$SUBS" | wc -l)
+    lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
 
     # Seen some cases of one subtitle choice with no language label -
     # this will fix that.  If there are several with no language label
     # we loose again.
     case $lines in
+	2) SUBS="";;
 	3) SUBS="$SUBS
 Unknown";;
     esac
-    
+
     select_language "Select subtitle language" "$SUBS"
     WSID=$?
 
