@@ -191,7 +191,7 @@ No"
 Standard"
 	      ;;
 	# 1920x1080 Full HD 1440x1080 = 4:3 in 1080p
-	1920|1912|1440|1916) RES="1920 full HD"
+	1872|1920|1912|1440|1916) RES="1920 full HD"
               LOWER="$LOWER
 2
 720p
