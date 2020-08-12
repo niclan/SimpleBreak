@@ -185,7 +185,7 @@ No"
 	# SD, no downscaling
 	720) return;;       
 	# 1280x720 Broadcast HD - 960x720 = 4:3 in 720p
-	960|1280) RES="720 HD"
+	960|1278|1280) RES="720 HD"
 	      LOWER="$LOWER
 2
 Standard"
