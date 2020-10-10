@@ -179,38 +179,43 @@ get_scaling () {
 No"
 
     # Check is width/rows of video stream, but the names of
-    # resulutions is lines in the videostream.  Using the width as
-    # that has seemed more reliable than the height.
-    case $WIDTH in
+    # resulutions is lines in the videostream.
+    # 
+    # Testing the width has seemed more reliable than the height,
+    # probably due to the variations in cinematic widescreen formats.
+    # Various sources have had odd widths too, but it seemed easier
+    # after a sampling of source materials.
+    if [ $WIDTH -eq 720 ] ; then
 	# SD, no downscaling
-	720) return;;       
+	return
+    elif [ $WIDTH -ge 960 -a $WIDTH -le 1280 ] ; then
 	# 1280x720 Broadcast HD - 960x720 = 4:3 in 720p
-	960|1278|1280) RES="720 HD"
-	      LOWER="$LOWER
+	RES="720 HD"
+	LOWER="$LOWER
 2
 Standard"
-	      ;;
+    elif [ $WIDTH -ge 1440 -a $WIDTH -le 1920 ] ; then
 	# 1920x1080 Full HD 1440x1080 = 4:3 in 1080p
-	1872|1920|1912|1440|1916) RES="1920 full HD"
-              LOWER="$LOWER
+	RES="1920 full HD"
+        LOWER="$LOWER
 2
 720p
 3
 Standard"
-	      ;;
-	# 3840 x 2160p UHD
-	3840) RES="3840 UHD"
-	      LOWER="$LOWER
+    elif [ $WIDTH -eq 3840 ] ; then
+	# 3840 x 2160p = 4K UHD
+	RES="3840 4K UHD"
+	LOWER="$LOWER
 2
 1080p
 3
 720p
 4
 Standard"
-	      ;;
-	*)    echo "Unrecognized vertical resolution $WIDTH"
-              exit 1;;
-    esac
+    else
+	echo "Unrecognized vertical resolution $WIDTH"
+        exit 1
+    fi
 
     select_language "Video is $RES. Do you want to downscale?" "$LOWER";
     ANSWER=$?
