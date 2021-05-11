@@ -31,10 +31,13 @@ get_language () {
     # - Copy the next line into the linebuffer
     # - Remove the embedded newline
     # - Remove leading number and whitespace
+    # + Now the content will be "LANGUAGE_TRAILING_STUFF_SDH".  Want to keep the language and the SDH
+    # - Remove anything between _ and SDH
+    # - Remove anything after the first (remaining) _
     # - Print the content of the linebuffer
     # For all lines: delete eveything
     # SO: Only the line following the matching line is printed.
-    line="$( echo "$2" | sed '/^'$1'$/{N;s/\n/ /;s/^[0-9]* //;p}; d' )"
+    line="$( echo "$2" | sed '/^'$1'$/{N;s/\n/ /;s/^[0-9]* //;s/_.*SDH/SDH/;s/_.*//;p}; d' )"
     echo $line
 }
 
@@ -64,7 +67,7 @@ select_language () {
         *)  # Several, let the user choose
 	    clear
 
-	    ID=$( dialog --clear --title "$movie" --menu "$1" 20 30 14 $2 2>&1 >/dev/tty )
+	    ID=$( dialog --clear --title "$movie" --menu "$1" 20 40 14 $2 2>&1 >/dev/tty )
 	    STATUS=$?
 	    case $STATUS in
 		255) echo "Dialog error ($1): $ID" >&2
@@ -88,17 +91,15 @@ get_audio () {
     # A audio track does not necessarily have a language code assigned
 
     AUDIO=$( mediainfo "$movie" |
-              sed '
-s/^Audio$/Audio #1/
-/^Audio #/,/^$/!d
-/^\(Language\|Audio #\|$\)/!d
-s/^Audio #/Audio /
-s/:/ /
-'  | awk '
-/Audio /   { N=$2; L="Unknown"; }
-/Language/ { L=$2 }
-/^$/ { print N"\n"L; }
-' )
+              sed '/^\(Audio$\|Audio #\)/,/^$/!d;
+	           s/^Audio$/Audio 1/;
+		   s/^Audio #/Audio /' |
+	      awk '/^Audio /       { N=$2; L="Unknown"; D = T = F = ""; }
+	           /^Language/     { L=$3; }
+		   /^Default.*Yes/ { D="_Default"; }
+		   /^Forced.*Yes/  { F="_Forced"; }
+		   /Title/         { sub(/.*: /, ""); gsub(/ /,"_"); T="_" $0; }
+		   /^$/            { print N"\n"L D F T; }' )
 
     case $AUDIO in
 	'') echo No audio available.  No support for silent movies >&2;
@@ -126,12 +127,12 @@ $( mediainfo "$movie" |
     sed '/^\(Text$\|Text #\)/,/^$/!d;
          s/^Text$/Text 1/;
 	 s/^Text #/Text /;' |
-    gawk '/^Text/        { text = $2; }
-         /^Forced.*Yes/  { forced = "_Forced"; }
-         /^Default.*Yes/ { def = "_Default"; }
-	 /^Title/        { title = "_" $3; }
-	 /^Language/     { lang = $3; }
-         /^$/            { print text "\n" lang title forced def;
+    gawk '/^Text /        { text = $2; }
+          /^Forced.*Yes/  { forced = "_Forced"; }
+          /^Default.*Yes/ { def = "_Default"; }
+	  /^Title/        { sub(/.*: /, ""); gsub(/ /,"_"); title ="_" $0; }
+	  /^Language/     { lang = $3; }
+          /^$/            { print text "\n" lang title forced def;
 	                   def = forced = title = lang = ""; }')"
 
     lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
