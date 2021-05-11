@@ -72,7 +72,8 @@ select_language () {
 	    esac
 
 	    case $ID in
-		'') echo "Canceled" >&2
+		'') clear
+		    echo "Canceled" >&2
 		    exit 255;;
 	    esac
 	    ;;
@@ -122,10 +123,16 @@ get_subtitle () {
     SUBS="0
 None
 $( mediainfo "$movie" |
-         sed '/^\(Text$\|Text #\)/,/^$/!d;
-              s/^Text$/Text #1/;
-              /^\(Language\|Text #\)/!d;
-              s/^.*[:#][ ]*//; s/ //g;' )"
+    sed '/^\(Text$\|Text #\)/,/^$/!d;
+         s/^Text$/Text 1/;
+	 s/^Text #/Text /;' |
+    gawk '/^Text/        { text = $2; }
+         /^Forced.*Yes/  { forced = "_Forced"; }
+         /^Default.*Yes/ { def = "_Default"; }
+	 /^Title/        { title = "_" $3; }
+	 /^Language/     { lang = $3; }
+         /^$/            { print text "\n" lang title forced def;
+	                   def = forced = title = lang = ""; }')"
 
     lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
 
