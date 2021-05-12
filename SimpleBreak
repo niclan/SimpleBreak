@@ -67,7 +67,7 @@ select_language () {
         *)  # Several, let the user choose
 	    clear
 
-	    ID=$( dialog --clear --title "$movie" --menu "$1" 20 40 14 $2 2>&1 >/dev/tty )
+	    ID=$( dialog --clear --title "$movie" --menu "$1" 0 0 0 $2 2>&1 >/dev/tty )
 	    STATUS=$?
 	    case $STATUS in
 		255) echo "Dialog error ($1): $ID" >&2
@@ -89,7 +89,13 @@ select_language () {
 get_audio () {
     # Select audio language
     # A audio track does not necessarily have a language code assigned
-
+    #
+    # - First sed isolates and normalizes the audio descriptions
+    # - Awk picks out the interesting information and constructs dialog --menu input
+    # - The awk script risks producing strings like
+    #   "English_English_Forced_Forced".  This is reduced by the second
+    #   sed expression
+    #
     AUDIO=$( mediainfo "$movie" |
               sed '/^\(Audio$\|Audio #\)/,/^$/!d;
 	           s/^Audio$/Audio 1/;
@@ -99,7 +105,8 @@ get_audio () {
 		   /^Default.*Yes/ { D="_Default"; }
 		   /^Forced.*Yes/  { F="_Forced"; }
 		   /Title/         { sub(/.*: /, ""); gsub(/ /,"_"); T="_" $0; }
-		   /^$/            { print N"\n"L D F T; }' )
+		   /^$/            { print N"\n"L D F T; }' |
+	      sed 's/\(_\|^\)\([^_]*\)_\2/\1\2/g' )
 
     case $AUDIO in
 	'') echo No audio available.  No support for silent movies >&2;
@@ -124,27 +131,19 @@ get_subtitle () {
     SUBS="0
 None
 $( mediainfo "$movie" |
-    sed '/^\(Text$\|Text #\)/,/^$/!d;
-         s/^Text$/Text 1/;
-	 s/^Text #/Text /;' |
-    gawk '/^Text /        { text = $2; }
-          /^Forced.*Yes/  { forced = "_Forced"; }
-          /^Default.*Yes/ { def = "_Default"; }
-	  /^Title/        { sub(/.*: /, ""); gsub(/ /,"_"); title ="_" $0; }
-	  /^Language/     { lang = $3; }
-          /^$/            { print text "\n" lang title forced def;
-	                   def = forced = title = lang = ""; }')"
+   sed '/^\(Text$\|Text #\)/,/^$/!d;
+        s/^Text$/Text 1/;
+        s/^Text #/Text /;' |
+   gawk '/^Text /        { text = $2; lang="Unknown" }
+         /^Forced.*Yes/  { forced = "_Forced"; }
+         /^Default.*Yes/ { def = "_Default"; }
+         /^Title/        { sub(/.*: /, ""); gsub(/ /,"_"); title ="_" $0; }
+	 /^Language/     { lang = $3; }
+         /^$/            { print text "\n" lang title forced def;
+	                   def = forced = title = ""; lang = "Unknown"; }' |
+    sed 's/\(_\|^\)\([^_]*\)_\2/\1\2/g' )"
 
     lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
-
-    # Seen some cases of one subtitle choice with no language label -
-    # this will fix that.  If there are several with no language label
-    # we loose again.
-    case $lines in
-	2) SUBS="";;
-	3) SUBS="$SUBS
-Unknown";;
-    esac
 
     select_language "Select subtitle language" "$SUBS"
     WSID=$?
@@ -155,8 +154,7 @@ Unknown";;
     esac
 
     case $WSUB in
-	none) echo "No subtitles available"
-              SUBTITLE='';;
+	none) SUBTITLE='';;
 	*)    SUBTITLE="--subtitle $WSID --subtitle-burn 1"
     esac
 }
