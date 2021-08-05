@@ -260,8 +260,8 @@ issue_command () {
 
     # Use $() and cat here to help keep the quoting sane
     CMD="$(cat <<EOF
-echo Generating $OUT from $BN
-echo Log in $LOG
+echo "Generating $OUT from $BN"
+echo "Log in $LOG"
 echo
 nice -9 \
     HandBrakeCLI --decomb -v 0 -i '$movie' -o '$OUT' --markers \
