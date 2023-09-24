@@ -191,7 +191,7 @@ No"
     # probably due to the variations in cinematic widescreen formats.
     # Various sources have had odd widths too, but it seemed easier
     # after a sampling of source materials.
-    if [ $WIDTH -eq 720 ] ; then
+    if [ $WIDTH -ge 690 -a $WIDTH -le 730 ] ; then
 	# SD, no downscaling
 	return
     elif [ $WIDTH -ge 960 -a $WIDTH -le 1280 ] ; then
