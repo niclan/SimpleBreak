@@ -251,6 +251,63 @@ Standard"
 }
 
 
+get_fps () {
+    FPS="$( mediainfo "$movie" |
+              sed '/^\(Video$\|Video #\)/,/^$/!d;
+		   /Frame rate mode/d;
+		   /Frame rate/!d;
+		   s/^.*: //;
+		   s/ .*//;')"
+
+    # Just keep the standard FPSes.
+    case $FPS in
+	24) return;;     # Movies
+	23.976) return;; # Movies
+	25) return;;     # PAL
+	29.97) return;;  # NTSC
+	30) return;;     # NTSC
+	50) suggest=25;; # HD PAL broadcast
+	60) suggest=30;; # Gaming, online video, some new movies
+	*)  suggest=25;; # Whatever you say
+    esac
+
+    LOWER="1
+Keep
+2
+$suggest
+3
+23.976
+4
+24
+5
+25
+6
+29.97
+7
+30
+8
+50
+9
+59.94
+10
+60
+"
+    
+    select_language "Video is $FPS FPS. Select new FPS" "$LOWER";
+    ANSWER=$?
+
+    NEWFPS=$(get_language $ANSWER "$LOWER")
+
+    REFRAME=''
+
+    case $ANSWER:$NEWFPS in
+	1:*) return;; # Keep
+	*:*) REFRAME="--rate=$NEWFPS"
+	     SCNAME="$SCNAME-${NEWFPS}fps";;
+    esac
+}
+
+
 issue_command () {
     OPTN=$(get_language $OPTID "$OPT")
 
@@ -265,7 +322,7 @@ echo "Log in $LOG"
 echo
 nice -9 \
     HandBrakeCLI --decomb -v 0 -i '$movie' -o '$OUT' --markers \
-    $SCALING --two-pass --turbo \
+    $SCALING $REFRAME --two-pass --turbo \
     -e x264 --x264-tune $OPTN --quality 20 \
     $AUDIO --aencoder lame --ab 256 \
     $SUBTITLE 2> '$LOG'
@@ -303,6 +360,7 @@ if [ ! -f "$movie" ] ; then
 fi
 
 get_scaling
+get_fps
 get_audio
 get_subtitle
 
