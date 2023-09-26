@@ -321,11 +321,11 @@ echo "Generating $OUT from $BN"
 echo "Log in $LOG"
 echo
 nice -9 \
-    HandBrakeCLI --decomb -v 0 -i '$movie' -o '$OUT' --markers \
-    $SCALING $REFRAME --two-pass --turbo \
-    -e x264 --x264-tune $OPTN --quality 20 \
-    $AUDIO --aencoder lame --ab 256 \
-    $SUBTITLE 2> '$LOG'
+    HandBrakeCLI --decomb -v 0 -i $(printf "%q" "$movie") -o $(printf "%q" "$OUT") --markers \
+	$SCALING $REFRAME --two-pass --turbo \
+	-e x264 --x264-tune $OPTN --quality 20 \
+	$AUDIO --aencoder lame --ab 256 \
+	$SUBTITLE >/dev/null 2> $(printf "%q" "$LOG") || echo "Encode exited with error $?"
 EOF
 )"
 
