@@ -5,6 +5,11 @@
 # set of subtitles - burned into the picture.  The result should be
 # suitable for bringing on travel and playing via WiFi on your TV (if
 # it supports the codec).
+#
+# Result will be:
+# - mkv container
+# - H.264 encoded video, quality setting 20 (two pass)
+# - MP3 encoded stereo audio, 256kbit/s
 
 # This script requires
 # - mediainfo - to see what's in the files
