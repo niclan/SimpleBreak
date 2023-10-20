@@ -196,7 +196,7 @@ No"
     # probably due to the variations in cinematic widescreen formats.
     # Various sources have had odd widths too, but it seemed easier
     # after a sampling of source materials.
-    if [ $WIDTH -ge 690 -a $WIDTH -le 730 ] ; then
+    if [ $WIDTH -le 730 ] ; then
 	# SD, no downscaling
 	return
     elif [ $WIDTH -ge 960 -a $WIDTH -le 1280 ] ; then
@@ -266,13 +266,13 @@ get_fps () {
 
     # Just keep the standard FPSes.
     case $FPS in
-	24) return;;     # Movies
-	23.976) return;; # Movies
-	25) return;;     # PAL
-	29.97) return;;  # NTSC
-	30) return;;     # NTSC
-	50) suggest=25;; # HD PAL broadcast
-	60) suggest=30;; # Gaming, online video, some new movies
+	24|24.000) return;;     # Movies
+	23.97*) return;; # Movies
+	25|25.000) return;;     # PAL
+	29.97*) return;;  # NTSC
+	30|30.000) return;;     # NTSC
+	50|50.000) suggest=25;; # HD PAL broadcast
+	60|60.000) suggest=30;; # Gaming, online video, some new movies
 	*)  suggest=25;; # Whatever you say
     esac
 
