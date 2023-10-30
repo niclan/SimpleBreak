@@ -41,7 +41,7 @@ I have settled on this work flow:
 
     The files made from DVDs are in the order of 1-1.7GB for a feature
     film and are easily played on the family TV over DLNA, or on the
-    hand helds (try MediaHouse and MX Player on Android) and does not
+    hand helds (try MediaHouse+MX Player or VLC on Android) and does not
     take quite forever to copy around.
 
 The program has no options (only user interactions), but you can set
@@ -53,3 +53,28 @@ two variables to controll it:
   export SBDEBUG=1
      Do not actually run any HandBrakeCLI command, only show it, and
      turn on tracing in the shell.
+
+## Features
+
+Render a complete RIP into a simple file with everything preset and
+selected for "good enough" video and audio quality and quite small
+file size.
+
+- Offer to reduce image size all the way to SD to fit the intended screen
+- If video is 50FPS or 60FPS offer to reduce it to half
+- Select audio language
+- Select subtitle language
+  - If there are any .srt files with matching name present then
+    offer to use those first, if user prefers: instead look for subs
+    in the video file
+- Select optimization for film or animation
+- Handles file names with space and special characters well
+- On a 12 treaded Ryzen 5 2600 1 hour of HD video takes about 30 minutes
+  to compress
+
+Output has:
+- Matroska container format
+- H.264 encoded videoH
+- One audio language, mp3 encoded
+- Chosen subtitles "burned" into the video - if any
+- All chapter marks preserved
