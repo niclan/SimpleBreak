@@ -249,7 +249,7 @@ No"
     if [ $WIDTH -le 730 ] ; then
 	# SD, no downscaling
 	return
-    elif [ $WIDTH -ge 960 -a $WIDTH -le 1280 ] ; then
+    elif [ $WIDTH -ge 960 -a $WIDTH -le 1360 ] ; then
 	# 1280x720 Broadcast HD - 960x720 = 4:3 in 720p
 	RES="720 HD"
 	LOWER="$LOWER
@@ -257,15 +257,15 @@ No"
 Standard"
     elif [ $WIDTH -ge 1440 -a $WIDTH -le 1920 ] ; then
 	# 1920x1080 Full HD 1440x1080 = 4:3 in 1080p
-	RES="1920 full HD"
+	RES="full HD"
         LOWER="$LOWER
 2
 720p
 3
 Standard"
-    elif [ $WIDTH -eq 3840 ] ; then
+    elif [ $WIDTH -gt 3000 -a $WIDTH -le 3840 ] ; then
 	# 3840 x 2160p = 4K UHD
-	RES="3840 4K UHD"
+	RES="4K UHD"
 	LOWER="$LOWER
 2
 1080p
