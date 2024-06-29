@@ -16,6 +16,7 @@
 # - HandBrakeCLI - to compress it the right way
 # - dialog - to ask the user stuff
 # - batch (from the "at" package) to batch process movie compression
+# - gawk - mediainfo output processing
 
 get_language () {
     # $1   = "line" number
