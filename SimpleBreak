@@ -16,9 +16,8 @@
 # - HandBrakeCLI - to compress it the right way
 # - dialog - to ask the user stuff
 # - batch (from the "at" package) to batch process movie compression
-# - gawk - mediainfo output processing
 
-get_language () {
+get_option () {
     # $1   = "line" number
     # "$2" = lines (tag\ntext\ntag\ntext...)
 
@@ -48,7 +47,7 @@ get_language () {
 }
 
 
-select_language () {
+select_option () {
     # $1: Dialog question/instuction
     # $2: Multi-word string consisting of "tag" and "text" pairs as described
     #     in the dialog docs. The "text" part can only be one word since
@@ -64,7 +63,7 @@ select_language () {
         0)  # None
             return 1;;
 
-	1)  echo "Odd number of languages: $2" >&2
+	1)  echo "Odd number of selections: $2" >&2
 	    exit 1;;
 
 	2)  # Just one.  Find its number.  It should be 1, but I feel paranoid
@@ -93,6 +92,36 @@ select_language () {
 }
 
 
+cache_mediainfo () {
+    # Run mediainfo once for all the different things we want to know
+    # and ensure the locale is C to avoid translations of the output
+    CACHE="$( mediainfo "$movie" )"
+}
+
+
+get_colorspace () {
+    # Just squash
+    CS="$( echo "$CACHE" | sed '/Color primaries/!d; s/.*: //')"
+    case $CS in
+	BT.2020) :;;
+	*) return;;
+    esac
+
+    select_option "Source is HDR, keep?" \
+"0
+No
+1
+Yes
+"
+
+    ANSWER=$?
+    case $ANSWER in
+	0) NEWCS=" --color-matrix 709 ";;
+	1) NEWCS="";;
+    esac
+}
+
+
 get_audio () {
     # Select audio language
     # A audio track does not necessarily have a language code assigned
@@ -103,7 +132,7 @@ get_audio () {
     #   "English_English_Forced_Forced".  This is reduced by the second
     #   sed expression
     #
-    AUDIO=$( mediainfo "$movie" |
+    AUDIO=$( echo "$CACHE" |
               sed '/^\(Audio$\|Audio #\)/,/^$/!d;
 	           s/^Audio$/Audio 1/;
 		   s/^Audio #/Audio /' |
@@ -121,11 +150,11 @@ get_audio () {
     esac
 
     # User selects what languages to use
-    select_language "Select audio language" "$AUDIO"
+    select_option "Select audio language" "$AUDIO"
     WAID=$?
 
     # And what language does those numbers correspond to?
-    WAUDIO=$(get_language $WAID "$AUDIO")
+    WAUDIO=$(get_option $WAID "$AUDIO")
 
     AUDIO="--audio $WAID"
 }
@@ -137,7 +166,7 @@ get_subtitle_in_file () {
     # Extract list of subtitle languages
     SUBS="0
 None
-$( mediainfo "$movie" |
+$( echo "$CACHE" |
    sed '/^\(Text$\|Text #\)/,/^$/!d;
         s/^Text$/Text 1/;
         s/^Text #/Text /;' |
@@ -152,12 +181,12 @@ $( mediainfo "$movie" |
 
     lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
 
-    select_language "Select subtitle language" "$SUBS"
+    select_option "Select subtitle language" "$SUBS"
     WSID=$?
 
     case $WSID in
 	0) WSUB=none;;
-	*) WSUB=$(get_language $WSID "$SUBS");;
+	*) WSUB=$(get_option $WSID "$SUBS");;
     esac
 
     case $WSUB in
@@ -190,7 +219,7 @@ get_srt_subtitle () {
 	    echo $lang
 	done)
 
-    select_language "Select SRT subs" "$SUBS"
+    select_option "Select SRT subs" "$SUBS"
     SRT=$?
 
     if [ $SRT -eq 0 ] ; then return; fi
@@ -224,18 +253,24 @@ film
 animation
 "
 
-    select_language "Select optimization" "$OPT"
+    select_option "Select optimization" "$OPT"
     OPTID=$?
 }
 
 
 get_scaling () {
-    WIDTH="$( mediainfo "$movie" |
+    WIDTH="$( echo "$CACHE" |
               sed '/^\(Video$\|Video #\)/,/^$/!d;
                    s/^Video$/Video #1/;
                    /^Width/!d;
                    s/^.*[:#][ ]*//; s/ //g;
                    s/pixels$//;' )"
+
+    case $WIDTH in
+	'') echo "Could not collect width infomation. Exiting." 1>&2
+	    echo "$CACHE"
+	    exit 1;;
+    esac
 
     LOWER="1
 No"
@@ -256,7 +291,7 @@ No"
 	LOWER="$LOWER
 2
 Standard"
-    elif [ $WIDTH -ge 1440 -a $WIDTH -le 1920 ] ; then
+    elif [ $WIDTH -ge 1430 -a $WIDTH -le 1920 ] ; then
 	# 1920x1080 Full HD 1440x1080 = 4:3 in 1080p
 	RES="full HD"
         LOWER="$LOWER
@@ -279,10 +314,10 @@ Standard"
         exit 1
     fi
 
-    select_language "Video is $RES. Do you want to downscale?" "$LOWER";
+    select_option "Video is $RES. Do you want to downscale?" "$LOWER";
     ANSWER=$?
 
-    NEWRES=$(get_language $ANSWER "$LOWER")
+    NEWRES=$(get_option $ANSWER "$LOWER")
 
     SCALING=""
     SCNAME=""
@@ -308,7 +343,7 @@ Standard"
 
 
 get_fps () {
-    FPS="$( mediainfo "$movie" |
+    FPS="$( echo "$CACHE" |
               sed '/^\(Video$\|Video #\)/,/^$/!d;
 		   /Frame rate mode/d;
 		   /Frame rate/!d;
@@ -349,10 +384,10 @@ $suggest
 60
 "
     
-    select_language "Video is $FPS FPS. Select new FPS" "$LOWER";
+    select_option "Video is $FPS FPS. Select new FPS" "$LOWER";
     ANSWER=$?
 
-    NEWFPS=$(get_language $ANSWER "$LOWER")
+    NEWFPS=$(get_option $ANSWER "$LOWER")
 
     REFRAME=''
 
@@ -365,7 +400,7 @@ $suggest
 
 
 issue_command () {
-    OPTN=$(get_language $OPTID "$OPT")
+    OPTN=$(get_option $OPTID "$OPT")
 
     BN="$(basename "$movie")"
     OUT="${BN%.*}-$WAUDIO-$WSUB$SCNAME.mkv"
@@ -377,8 +412,8 @@ echo "Generating $OUT from $BN in $PWD"
 echo "Log in $LOG"
 echo
 nice -9 \
-    HandBrakeCLI --decomb -v 0 -i $(printf "%q" "$movie") -o $(printf "%q" "$OUT") --markers \
-	$SCALING $REFRAME --two-pass --turbo \
+    HandBrakeCLI --comb-detect --decomb -v 0 -i $(printf "%q" "$movie") -o $(printf "%q" "$OUT") --markers \
+	$SCALING $REFRAME $NEWCS --two-pass --turbo \
 	-e x264 --x264-tune $OPTN --quality 20 \
 	$AUDIO --aencoder lame --ab 256 \
 	$SUBTITLE >/dev/null 2> $(printf "%q" "$LOG") || echo "Encode exited with error $?"
@@ -415,7 +450,10 @@ if [ ! -f "$movie" ] ; then
     exit 1
 fi
 
+echo Collecting media information
+cache_mediainfo
 get_scaling
+get_colorspace
 get_fps
 get_audio
 get_subtitle
