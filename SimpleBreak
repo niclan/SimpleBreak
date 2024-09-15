@@ -141,9 +141,11 @@ get_audio () {
 		   /^Default.*Yes/ { D="_Default"; }
 		   /^Forced.*Yes/  { F="_Forced"; }
 		   /Title/         { sub(/.*: /, ""); gsub(/ /,"_"); T="_" $0; }
-		   /^$/            { print N"\n"L D F T; }' |
+		   /^$/            { print N"\n"L D F T; N="" }
+                   END             { if (N != "") print N"\n"L D F T; }
+' |
 	      sed 's/\(_\|^\)\([^_]*\)_\2/\1\2/g' )
-
+ 
     case $AUDIO in
 	'') echo No audio available.  No support for silent movies >&2;
 	    exit 1;;
@@ -176,7 +178,8 @@ $( echo "$CACHE" |
          /^Title/        { sub(/.*: /, ""); gsub(/ /,"_"); title ="_" $0; }
 	 /^Language/     { lang = $3; }
          /^$/            { print text "\n" lang title forced def;
-	                   def = forced = title = ""; lang = "Unknown"; }' |
+	                   text = def = forced = title = ""; lang = "Unknown"; }
+	 END		 { if (text != "") print text "\n" lang title forced def; }' |
     sed 's/\(_\|^\)\([^_]*\)_\2/\1\2/g; s/[^A-Za-z0-9_]//g' )"
 
     lines=$(echo "$SUBS" | grep -v '^$' | wc -l)
