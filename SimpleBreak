@@ -10,6 +10,10 @@
 # - mkv container
 # - H.264 encoded video, quality setting 20 (two pass)
 # - MP3 encoded stereo audio, 256kbit/s
+#
+# Set audio bit rate (kbps), 256, 320. In blind testing with ordinary
+# people 256 more than enough bits
+AB=256
 
 # This script requires
 # - mediainfo - to see what's in the files
@@ -416,10 +420,10 @@ echo "Log in $LOG"
 echo
 nice -9 \
     HandBrakeCLI --comb-detect --decomb -v 0 -i $(printf "%q" "$movie") -o $(printf "%q" "$OUT") --markers \
-	$SCALING $REFRAME $NEWCS --two-pass --turbo \
+	$SCALING $REFRAME $NEWCS --multi-pass --turbo \
 	-e x264 --x264-tune $OPTN --quality 20 \
-	$AUDIO --aencoder lame --ab 256 \
-	$SUBTITLE >/dev/null 2> $(printf "%q" "$LOG") || echo "Encode exited with error $?"
+	$AUDIO --aencoder mp3 --ab $AB \
+	$SUBTITLE >/dev/null 2> $(printf "%q" "$LOG") || echo "Encode exited with error \$?"
 EOF
 )"
 
